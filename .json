@@ -1,0 +1,317 @@
+// package.json
+{
+  "name": "bfhl-frontend",
+  "version": "0.1.0",
+  "private": true,
+  "dependencies": {
+    "axios": "^1.4.0",
+    "prop-types": "^15.8.1",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-scripts": "5.0.1",
+    "react-select": "^5.7.0"
+  },
+  "scripts": {
+    "start": "react-scripts start",
+    "build": "react-scripts build",
+    "test": "react-scripts test",
+    "eject": "react-scripts eject"
+  }
+}
+
+// public/index.html
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <link rel="icon" href="%PUBLIC_URL%/favicon.ico" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="BFHL Frontend Application" />
+    <title>ABCD123</title>
+  </head>
+  <body>
+    <noscript>You need to enable JavaScript to run this app.</noscript>
+    <div id="root"></div>
+  </body>
+</html>
+
+// src/index.js
+import React from 'react';
+import ReactDOM from 'react-dom/client';
+import App from './App';
+import './App.css';
+
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(
+  <React.StrictMode>
+    <App />
+  </React.StrictMode>
+);
+
+// src/App.js
+import React, { useState } from 'react';
+import JsonInputForm from './components/JsonInputForm';
+import MultiSelectDropdown from './components/MultiSelectDropdown';
+import ResponseDisplay from './components/ResponseDisplay';
+import { postJsonData } from './api';
+import './App.css';
+
+function App() {
+  const [responseData, setResponseData] = useState(null);
+  const [selectedOptions, setSelectedOptions] = useState([]);
+  const [loading, setLoading] = useState(false);
+
+  const handleJsonSubmit = async (json) => {
+    setLoading(true);
+    try {
+      const response = await postJsonData(json);
+      setResponseData(response);
+    } catch (error) {
+      alert(
+        error.error
+          ? `Error: ${error.error}`
+          : 'An unexpected error occurred while processing your request.'
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDropdownChange = (selected) => {
+    setSelectedOptions(selected || []);
+  };
+
+  return (
+    <div className="App">
+      <h1>ABCD123</h1>
+      <JsonInputForm onSubmit={handleJsonSubmit} />
+      {loading && <p>Loading...</p>}
+      {responseData && !loading && (
+        <MultiSelectDropdown onChange={handleDropdownChange} />
+      )}
+      {selectedOptions.length > 0 && (
+        <ResponseDisplay
+          responseData={responseData}
+          selectedOptions={selectedOptions}
+        />
+      )}
+    </div>
+  );
+}
+
+export default App;
+
+// src/api.js
+import axios from 'axios';
+
+const API_BASE_URL = 'https://testbfhl.herokuapp.com/bfhl'; // Replace with your actual backend URL
+
+export const postJsonData = async (jsonData) => {
+  try {
+    const response = await axios.post(API_BASE_URL, jsonData, {
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+    return response.data;
+  } catch (error) {
+    throw error.response ? error.response.data : { error: 'Network Error' };
+  }
+};
+
+// src/components/JsonInputForm.js
+import React, { useState } from 'react';
+import PropTypes from 'prop-types';
+
+const JsonInputForm = ({ onSubmit }) => {
+  const [jsonInput, setJsonInput] = useState('');
+  const [error, setError] = useState('');
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    try {
+      const parsedJson = JSON.parse(jsonInput);
+      setError('');
+      onSubmit(parsedJson);
+    } catch (err) {
+      setError('Invalid JSON format. Please correct and try again.');
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit}>
+      <div>
+        <label htmlFor="jsonInput">Enter JSON:</label>
+        <textarea
+          id="jsonInput"
+          value={jsonInput}
+          onChange={(e) => setJsonInput(e.target.value)}
+          rows="10"
+          cols="50"
+          placeholder='e.g., { "data": ["A", "C", "z"] }'
+          required
+        />
+      </div>
+      {error && <p style={{ color: 'red' }}>{error}</p>}
+      <button type="submit">Submit</button>
+    </form>
+  );
+};
+
+JsonInputForm.propTypes = {
+  onSubmit: PropTypes.func.isRequired,
+};
+
+export default JsonInputForm;
+
+// src/components/MultiSelectDropdown.js
+import React from 'react';
+import Select from 'react-select';
+import PropTypes from 'prop-types';
+
+const options = [
+  { value: 'alphabets', label: 'Alphabets' },
+  { value: 'numbers', label: 'Numbers' },
+  { value: 'highest_lowercase_alphabet', label: 'Highest Lowercase Alphabet' },
+  { value: 'email', label: 'Email ID' },
+  { value: 'roll_number', label: 'Roll Number' },
+  { value: 'file_info', label: 'File Information' },
+];
+
+const MultiSelectDropdown = ({ onChange }) => {
+  return (
+    <div style={{ marginTop: '20px' }}>
+      <label htmlFor="multiSelect">Select Data to Display:</label>
+      <Select
+        id="multiSelect"
+        options={options}
+        isMulti
+        onChange={onChange}
+        placeholder="Select options..."
+      />
+    </div>
+  );
+};
+
+MultiSelectDropdown.propTypes = {
+  onChange: PropTypes.func.isRequired,
+};
+
+export default MultiSelectDropdown;
+
+// src/components/ResponseDisplay.js
+import React from 'react';
+import PropTypes from 'prop-types';
+
+const ResponseDisplay = ({ responseData, selectedOptions }) => {
+  if (!responseData) return null;
+
+  const renderData = () => {
+    const dataToRender = {};
+
+    selectedOptions.forEach((option) => {
+      switch (option.value) {
+        case 'alphabets':
+          dataToRender.alphabets = responseData.alphabets;
+          break;
+        case 'numbers':
+          dataToRender.numbers = responseData.numbers;
+          break;
+        case 'highest_lowercase_alphabet':
+          dataToRender.highest_lowercase_alphabet = responseData.highest_lowercase_alphabet;
+          break;
+        case 'email':
+          dataToRender.email = responseData.email;
+          break;
+        case 'roll_number':
+          dataToRender.roll_number = responseData.roll_number;
+          break;
+        case 'file_info':
+          dataToRender.file_valid = responseData.file_valid;
+          dataToRender.file_mime_type = responseData.file_mime_type;
+          dataToRender.file_size_kb = responseData.file_size_kb;
+          break;
+        default:
+          break;
+      }
+    });
+
+    return (
+      <div>
+        {Object.keys(dataToRender).map((key) => (
+          <div key={key} style={{ marginBottom: '10px' }}>
+            <strong>{key.replace(/_/g, ' ').toUpperCase()}:</strong>{' '}
+            {Array.isArray(dataToRender[key])
+              ? JSON.stringify(dataToRender[key])
+              : dataToRender[key].toString()}
+          </div>
+        ))}
+      </div>
+    );
+  };
+
+  return (
+    <div style={{ marginTop: '20px', border: '1px solid #ccc', padding: '10px' }}>
+      <h3>Response:</h3>
+      {renderData()}
+    </div>
+  );
+};
+
+ResponseDisplay.propTypes = {
+  responseData: PropTypes.object,
+  selectedOptions: PropTypes.array.isRequired,
+};
+
+export default ResponseDisplay;
+
+// src/App.css
+.App {
+  text-align: center;
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 20px;
+  font-family: Arial, sans-serif;
+}
+
+form {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+label {
+  margin-bottom: 5px;
+  font-weight: bold;
+}
+
+textarea {
+  width: 100%;
+  padding: 10px;
+  margin-bottom: 10px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  resize: vertical;
+}
+
+button {
+  padding: 10px 20px;
+  background-color: #28a745;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 16px;
+}
+
+button:hover {
+  background-color: #218838;
+}
+
+h1 {
+  margin-bottom: 20px;
+}
+
+h3 {
+  margin-bottom: 10px;
+}
